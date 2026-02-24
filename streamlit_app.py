@@ -1,0 +1,32 @@
+# Import python packages
+import streamlit as st
+from snowflake.snowpark.context import get_active_session
+from snowflake.snowpark.functions import col, when_matched
+
+# Write directly to the app
+st.title(f":cup_with_straw: Pending Orders! :cup_with_straw:")
+
+
+session = get_active_session()
+my_dataframe = session.table("SMOOTHIES.PUBLIC.ORDERS").filter(col("ORDER_FILLED")==0).collect()
+if my_dataframe:
+    editable_df=st.data_editor(my_dataframe)
+    Confirm= st.button ('Confirm Order')
+
+    if Confirm:
+        #st.success('Someone clicked the button', icon = '👍')
+        og_dataset = session.table("smoothies.public.orders")
+        edited_dataset = session.create_dataframe(editable_df)
+        
+        try:
+            og_dataset.merge(edited_dataset
+                     , (og_dataset['ORDER_UID'] == edited_dataset['ORDER_UID'])
+                     , [when_matched().update({'ORDER_FILLED': edited_dataset['ORDER_FILLED']})]
+                    )
+            st.success('Order(s) updated')
+        except:
+            st.write('Something went wromg')
+else:
+    st.success('No Pending Orders', icon = '👍')
+
+
